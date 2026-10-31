@@ -1,0 +1,8 @@
+.venv/
+third_party/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+results/*
+!results/.gitkeep
+simulation/sumo_configs/generated/
