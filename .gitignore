@@ -6,3 +6,5 @@ __pycache__/
 results/*
 !results/.gitkeep
 simulation/sumo_configs/generated/
+node_modules/
+dashboard/frontend/dist/

@@ -7,15 +7,25 @@ from .signal_observer import observe_signals
 
 
 class TraCIClient:
-    def __init__(self, config, sumocfg):
+    def __init__(self, config, sumocfg, gui=False, delay=100, reporter=None):
         self.config = config
         self.sumocfg = sumocfg
+        self.gui = gui
+        self.delay = delay
+        self.reporter = reporter
 
     def events(self):
         config = self.config
         label = str(uuid.uuid4())
-        traci.start(['sumo', '-c', str(self.sumocfg), '--seed', str(config.seed), '--no-step-log', 'true', '--duration-log.disable', 'true'], label=label, doSwitch=False)
+        command = ['sumo-gui' if self.gui else 'sumo', '-c', str(self.sumocfg), '--seed', str(config.seed), '--no-step-log', 'true', '--duration-log.disable', 'true']
+        if self.gui:
+            command += ['--start', '--quit-on-end', '--delay', str(self.delay)]
+        traci.start(command, label=label, doSwitch=False)
         connection = traci.getConnection(label)
+        connection.getVersion()  # actual TraCI handshake, not PID-only readiness
+        if self.reporter:
+            process = getattr(connection, '_process', None)
+            self.reporter.update(traci='connected', sumo_pid=process.pid if process else None, gui=self.gui)
         sequence = {}
         owners = {}
         tick = 0
@@ -31,6 +41,8 @@ class TraCIClient:
         try:
             while connection.simulation.getTime() < config.duration_s - 1e-8:
                 connection.simulationStep()
+                if self.reporter:
+                    self.reporter.update(traci='connected', simulation_time_ms=round(connection.simulation.getTime()*1000))
                 tick += 1
                 now = round(connection.simulation.getTime()*1000)
                 inserted = set(connection.simulation.getDepartedIDList())
@@ -52,4 +64,9 @@ class TraCIClient:
                         variables = dict(vehicle_count=connection.edge.getLastStepVehicleNumber(road), mean_speed=connection.edge.getLastStepMeanSpeed(road), occupancy=connection.edge.getLastStepOccupancy(road))
                         yield event(road, 'road_segment', 'observation', now, config.owner(x), variables)
         finally:
-            connection.close()
+            if self.reporter:
+                self.reporter.update(traci='closed')
+            try:
+                connection.close()
+            except (traci.FatalTraCIError, OSError):
+                pass

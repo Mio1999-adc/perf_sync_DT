@@ -71,3 +71,13 @@ class DittoAdapter:
         if response.status_code in (409, 412):
             raise Conflict('Ditto conditional write rejected')
         response.raise_for_status()
+
+    def get_many(self, identities):
+        """Bounded authoritative read for GUI snapshots; never used for conditional writes."""
+        if len(identities) > 200:
+            raise ValueError('at most 200 identities per Ditto read')
+        if not identities:
+            return []
+        response = self.session.get(self.base.rstrip('/'), params={'ids': ','.join(identities)}, timeout=self.timeout)
+        response.raise_for_status()
+        return [Twin.model_validate(thing['attributes']['perfsync']) for thing in response.json()]

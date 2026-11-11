@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+"""Manage only the perfsync-ow Helm release; never remove volumes or the cluster."""
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import subprocess
+import sys
+import uuid
+ROOT = Path(__file__).resolve().parents[1]
+PRIVATE = ROOT / 'results/phase3/private'
+PRIVATE.mkdir(parents=True, exist_ok=True, mode=0o700)
+os.chmod(PRIVATE, 0o700)
+helm = shutil.which('helm') or str(ROOT / 'results/phase3-tools/linux-amd64/helm')
+mode = sys.argv[1] if len(sys.argv) > 1 else 'status'
+base = [helm, '--namespace', 'perfsync-openwhisk']
+if mode == 'deploy':
+    path = PRIVATE / 'helm-secrets.json'
+    if not path.exists():
+        data = {'whisk': {'auth': {k: f'{uuid.uuid4()}:{secrets.token_hex(32)}' for k in ('system','guest')}}, 'db': {'auth': {'username': 'perfsync', 'password': secrets.token_hex(32)}}}
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        with os.fdopen(fd, 'w') as out: json.dump(data, out)
+    chart = ROOT/'results/phase3/chart'
+    shutil.copytree(ROOT/'third_party/openwhisk-deploy-kube/helm/openwhisk',chart,dirs_exist_ok=True)
+    # Retain every platform PVC on Helm uninstall; do not modify the upstream checkout.
+    for template in (chart/'templates').glob('*pvc*.yaml'):
+        source=template.read_text()
+        source=source.replace('metadata:\n', 'metadata:\n  annotations:\n    helm.sh/resource-policy: keep\n',1)
+        template.write_text(source)
+    runtimes=chart/'runtimes.json'
+    runtime_data=json.loads(runtimes.read_text())
+    # These JavaScript prewarms are unrelated to the five Python actions.
+    for versions in runtime_data['runtimes'].values():
+        for runtime in versions: runtime.pop('stemCells',None)
+    runtimes.write_text(json.dumps(runtime_data,indent=2))
+    controller = chart/'templates/controller-pod.yaml'
+    source=controller.read_text()
+    source=source.replace('        livenessProbe:', '        startupProbe:\n          httpGet:\n            path: /ping\n            port: {{ .Values.controller.port }}\n          periodSeconds: 5\n          timeoutSeconds: 5\n          failureThreshold: 120\n        livenessProbe:',1)
+    controller.write_text(source)
+    status = subprocess.run(base + ['status','perfsync-ow','-o','json'],capture_output=True,text=True)
+    kubectl = shutil.which('kubectl') or str(ROOT/'results/phase3-tools/kubectl')
+    retained = subprocess.run([kubectl,'--request-timeout=10s','-n','perfsync-openwhisk','get','pvc','perfsync-ow-couchdb-pvc','-o','name'],capture_output=True,text=True)
+    extra = ['--set','db.wipeAndInit=false'] if status.returncode == 0 or retained.returncode == 0 else []
+    subprocess.run(base + ['upgrade', '--install', 'perfsync-ow', str(chart), '--create-namespace', '-f', str(ROOT/'infrastructure/kubernetes/openwhisk-values.yaml'), '-f', str(path), '--wait', '--timeout', '15m'] + extra, check=True)
+elif mode == 'cleanup':
+    subprocess.run(base + ['uninstall', 'perfsync-ow', '--wait'], check=True)
+    kubectl = shutil.which('kubectl') or str(ROOT/'results/phase3-tools/kubectl')
+    subprocess.run([kubectl,'-n','perfsync-openwhisk','delete','pod','-l','release=perfsync-ow,user-action-pod=true','--wait=true'],check=True)
+elif mode == 'status':
+    subprocess.run(base + ['status', 'perfsync-ow'], check=True)
+else:
+    raise SystemExit('usage: openwhisk-infra deploy|status|cleanup')

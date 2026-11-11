@@ -336,3 +336,33 @@ def test_ditto_conditional_http_contract():
     adapter.session.response.headers = {}
     with pytest.raises(RuntimeError,match='ETag required'):
         adapter.get(twin.dt_id)
+
+
+def test_interrupt_after_sqlite_commit_preserves_original_signal_and_data(tmp_path):
+    journal = Journal(tmp_path/'interrupt.db')
+    connection = journal.db
+    class InterruptedCommit:
+        @property
+        def in_transaction(self):
+            return connection.in_transaction
+        def execute(self, sql, *args):
+            result = connection.execute(sql, *args)
+            if sql == 'COMMIT':
+                raise KeyboardInterrupt
+            return result
+    journal.db = InterruptedCommit()
+    with pytest.raises(KeyboardInterrupt):
+        with journal.transaction():
+            journal.db.execute("INSERT INTO outbox(key,body) VALUES ('actual-commit','{}')")
+    assert not connection.in_transaction
+    assert connection.execute('SELECT key FROM outbox').fetchall() == [('actual-commit',)]
+
+
+def test_interrupt_before_commit_rolls_back_pending_journal_write(tmp_path):
+    journal = Journal(tmp_path/'interrupt.db')
+    with pytest.raises(KeyboardInterrupt):
+        with journal.transaction():
+            journal.db.execute("INSERT INTO outbox(key,body) VALUES ('pending','{}')")
+            raise KeyboardInterrupt
+    assert not journal.db.in_transaction
+    assert journal.db.execute('SELECT count(*) FROM outbox').fetchone()[0] == 0

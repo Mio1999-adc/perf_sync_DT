@@ -1,3 +1,4 @@
+from opentelemetry import trace, propagate
 import sqlite3
 import requests
 from dt.models import digital_id
@@ -12,12 +13,17 @@ from .preconditions import PreconditionError
 
 
 class OperationManager:
-    def __init__(self, adapter, journal):
+    def __init__(self, adapter, journal, executor=None):
         self.adapter = adapter
         self.journal = journal
-        self.executor = LocalExecutor(adapter, journal)
+        self.executor = executor or LocalExecutor(adapter, journal)
 
     def submit(self, event):
+        parent = propagate.extract(event.trace_context) if event.trace_context else None
+        with trace.get_tracer("perfsyncgnn").start_as_current_span("operation_manager.submit", context=parent, attributes={"source.event":event.event_id,"run.id":event.run_id}):
+            return self._submit(event)
+
+    def _submit(self, event):
         with self.journal.transaction():
             self.journal.ingest(event)
         self.recover()

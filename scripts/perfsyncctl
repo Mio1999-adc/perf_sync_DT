@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PERFSYNC_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ ! -x "$PERFSYNC_ROOT/.venv/bin/python" ]]; then
+  echo 'Missing .venv/bin/python; follow the Phase 2 installation guide.' >&2
+  exit 1
+fi
+cd "$PERFSYNC_ROOT"
+exec "$PERFSYNC_ROOT/.venv/bin/python" -m perfsyncgnn.launcher.cli "$@"

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# One-time provisioning; does not delete/recreate an existing cluster.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+mkdir -p results/phase3-tools
+export PATH="$PWD/results/phase3-tools:$PWD/results/phase3-tools/linux-amd64:$PWD/results/phase3-tools/node-v22.16.0-linux-x64/bin:$PATH"
+.venv/bin/python -m pip install -e '.[test]'
+npm --prefix dashboard/frontend ci
+npm --prefix dashboard/frontend run build
+minikube start -p minikube
+./scripts/openwhisk-infra deploy
+./scripts/build-openwhisk-runtime
+./scripts/configure-openwhisk-local
+# API forwarding is supervised by this setup process and closed on exit.
+kubectl -n perfsync-openwhisk port-forward --address 127.0.0.1 service/perfsync-ow-nginx 3233:80 > results/phase3-tools/bootstrap-api.log 2>&1 &
+PERFSYNC_API_PID=$!
+trap 'kill "$PERFSYNC_API_PID" 2>/dev/null || true' EXIT
+.venv/bin/python - <<'PY'
+from perfsyncgnn.launcher.health_checks import wait_ready
+from perfsyncgnn.serverless.openwhisk_executor import OpenWhiskClient
+wait_ready(OpenWhiskClient().health,120)
+PY
+./scripts/openwhisk-actions
+./scripts/openwhisk-check

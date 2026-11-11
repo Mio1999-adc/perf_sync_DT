@@ -20,6 +20,8 @@ class LocalExecutor:
         self.clock_session = str(uuid.uuid4())
 
     def move(self, op, status):
+        if status == Status.VALIDATED: op.validated_unix_ns = time.time_ns()
+        if status == Status.QUEUED: op.queued_unix_ns = time.time_ns()
         op.transition(status)
         self.journal.save(op)
 

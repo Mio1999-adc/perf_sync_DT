@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec .venv/bin/python - <<'PY'
+import json
+import subprocess
+from perfsyncgnn.serverless.config import PRIVATE, save_connection
+secrets=json.loads((PRIVATE/'helm-secrets.json').read_text())
+network=json.loads(subprocess.check_output(['docker','network','inspect','minikube']))
+gateway=network[0]['IPAM']['Config'][0]['Gateway']
+save_connection({'OPENWHISK_API_URL':'http://127.0.0.1:3233','OPENWHISK_AUTH':secrets['whisk']['auth']['guest'],'DITTO_ACTION_URL':'http://'+gateway+':8080'})
+print('Private local OpenWhisk configuration saved (mode 0600).')
+PY

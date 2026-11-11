@@ -21,6 +21,7 @@ class TrafficEvent(BaseModel):
     emitted_at_unix_ms: Optional[int] = Field(default=None, ge=0)
     process_variables: dict[str, Any] = Field(default_factory=dict)
     subscription: Optional[dict[str, Any]] = None
+    trace_context: dict[str, str] = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_payload(self):
@@ -46,4 +47,4 @@ class TrafficEvent(BaseModel):
 
     @property
     def fingerprint(self):
-        return hashlib.sha256(json.dumps(self.model_dump(exclude={"emitted_at_unix_ms"}), sort_keys=True).encode()).hexdigest()
+        return hashlib.sha256(json.dumps(self.model_dump(exclude={"emitted_at_unix_ms", "trace_context"}), sort_keys=True).encode()).hexdigest()

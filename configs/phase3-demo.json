@@ -1,0 +1,11 @@
+{
+  "seed": 27,
+  "duration_s": 85,
+  "step_s": 0.2,
+  "observation_interval_s": 5,
+  "arrival_rate_per_s": 0.08,
+  "run_id": "phase3-two-rsu-demo",
+  "rsu_boundary_x": 300,
+  "west_owner": "rsu-west",
+  "east_owner": "rsu-east"
+}

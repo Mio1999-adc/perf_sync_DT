@@ -20,6 +20,10 @@ class Journal:
         CREATE INDEX IF NOT EXISTS operations_event_key ON operations(json_extract(body, '$.payload.event_key'));
         CREATE TABLE IF NOT EXISTS lifecycle (ordinal INTEGER PRIMARY KEY, body TEXT);
         CREATE TABLE IF NOT EXISTS outbox (key TEXT PRIMARY KEY, body TEXT, sent INTEGER DEFAULT 0);
+        CREATE INDEX IF NOT EXISTS operations_dt_id ON operations(json_extract(body,'$.dt_id'));
+        CREATE INDEX IF NOT EXISTS lifecycle_operation_id ON lifecycle(json_extract(body,'$.operation_id'));
+        CREATE INDEX IF NOT EXISTS inbox_entity ON inbox(json_extract(body,'$.entity_id'));
+        CREATE INDEX IF NOT EXISTS outbox_entity ON outbox(json_extract(body,'$.entity_id'));
         ''')
 
     @contextmanager
@@ -38,7 +42,13 @@ class Journal:
             yield
             self.db.execute('COMMIT')
         except BaseException:
-            self.db.execute('ROLLBACK')
+            # A signal can arrive after SQLite committed but before execute returned.
+            # Do not mask the original interruption with 'no transaction is active'.
+            if self.db.in_transaction:
+                try:
+                    self.db.execute('ROLLBACK')
+                except sqlite3.Error:
+                    pass  # preserve the original failure; recovery uses durable state
             raise
 
     def ingest(self, event):
@@ -49,8 +59,11 @@ class Journal:
 
     def save(self, operation):
         if not self.db.in_transaction:
+            started = time.monotonic_ns()
             with self.transaction():
                 self.save(operation)
+            from monitoring.telemetry import STORAGE
+            STORAGE.observe((time.monotonic_ns()-started)/1e9)
             return
         self.db.execute('INSERT INTO operations VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body', (operation.operation_id, operation.model_dump_json()))
         record = operation.model_dump(mode='json')

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+docker build -f perfsyncgnn/serverless/runtime.Dockerfile -t perfsync-action:phase3-v2 .
+# Load only this project image into the existing Minikube Docker runtime.
+docker save perfsync-action:phase3-v2 | docker exec -i minikube docker load

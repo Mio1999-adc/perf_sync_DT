@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""One real resource snapshot. Failure is unavailable, never zero utilization."""
+import json
+from pathlib import Path
+import shutil
+import subprocess
+import time
+ROOT=Path(__file__).resolve().parents[1]
+kubectl=shutil.which('kubectl') or str(ROOT/'results/phase3-tools/kubectl')
+result={'observed_unix_ns':time.time_ns(),'measured':{},'unavailable':{}}
+commands={'pods':[kubectl,'top','pods','-n','perfsync-openwhisk','--containers'],
+          'minikube_containers':['docker','exec','minikube','docker','stats','--no-stream','--format','{{json .}}'],
+          'containers':['docker','stats','--no-stream','--format','{{json .}}'],
+          'pod_status':[kubectl,'get','pods','-n','perfsync-openwhisk','-o','json']}
+for name,cmd in commands.items():
+    try:
+        run=subprocess.run(cmd,capture_output=True,text=True,timeout=20,check=True)
+        # Pod JSON can contain secret action parameters indirectly; report status only.
+        if name=='pod_status':
+            data=json.loads(run.stdout)
+            result['measured'][name]=[{'name':p['metadata']['name'],'phase':p['status']['phase'],'container_statuses':p['status'].get('containerStatuses',[])} for p in data['items']]
+        elif name=='minikube_containers':
+            rows=[json.loads(line) for line in run.stdout.splitlines() if line.strip()]
+            result['measured'][name]=[row for row in rows if '_perfsync-openwhisk_' in row.get('Name','')]
+        else:result['measured'][name]=run.stdout.strip()
+    except Exception as exc:result['unavailable'][name]=type(exc).__name__
+print(json.dumps(result))

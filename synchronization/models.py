@@ -30,6 +30,8 @@ class Operation(BaseModel):
     status: Status = Status.CREATED
     request_unix_ns: int = Field(default_factory=time.time_ns)
     request_monotonic_ns: int = Field(default_factory=time.monotonic_ns)
+    validated_unix_ns: Optional[int] = None
+    queued_unix_ns: Optional[int] = None
     start_unix_ns: Optional[int] = None
     commit_unix_ns: Optional[int] = None
     commit_monotonic_ns: Optional[int] = None
@@ -40,6 +42,10 @@ class Operation(BaseModel):
     error_category: Optional[str] = None
     error: Optional[str] = None
     clock_session: str = ''
+    trace_context: dict[str, str] = Field(default_factory=dict)
+    activation_id: Optional[str] = None
+    function_metadata: dict[str, Any] = Field(default_factory=dict)
+    retry_count: int = 0
 
     def transition(self, status):
         if self.status in TERMINAL or (status not in {Status.FAILED, Status.CANCELLED, Status.SUPERSEDED} and NEXT.get(self.status) != status):

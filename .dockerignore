@@ -1,0 +1,7 @@
+.git
+.venv
+results
+third_party
+node_modules
+dashboard
+**/__pycache__

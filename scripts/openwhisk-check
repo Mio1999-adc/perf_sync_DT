@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+exec .venv/bin/python - <<'PY'
+import json
+from perfsyncgnn.serverless.openwhisk_executor import OpenWhiskClient
+client=OpenWhiskClient()
+client.health()
+result=client.invoke('perfsync-python-probe',{})
+if not result.get('response',{}).get('success'):
+ raise SystemExit('Python action failed; inspect the activation and invoker')
+print(json.dumps({'activation_id':result['activationId'],'result':result['response'].get('result'),'duration_ms':result.get('duration')}))
+PY

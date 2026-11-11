@@ -1,3 +1,5 @@
+> Historical initial implementation report. For subsequent live-service verification, see [PHASE2_VERIFICATION.md](PHASE2_VERIFICATION.md).
+
 # Phase 2 verification report
 
 Date: 2026-10-31 (Asia/Seoul).

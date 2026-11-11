@@ -1,0 +1,28 @@
+# Official Apache Helm chart 1.0.1; isolated development namespace.
+whisk:
+  ingress:
+    type: NodePort
+    apiHostName: localhost
+    apiHostPort: 31001
+    useInternally: false
+  limits:
+    actionsInvokesPerminute: 6000
+  containerPool:
+    userMemory: 2048m
+nginx:
+  httpsNodePort: 31001
+affinity:
+  enabled: false
+toleration:
+  enabled: false
+invoker:
+  runtimeDeleteTimeout: '180 seconds'
+  jvmHeapMB: '512'
+  options: '-Dwhisk.kubernetes.user-pod-node-affinity.enabled=false'
+  containerFactory:
+    impl: kubernetes
+controller:
+  jvmHeapMB: '512'
+k8s:
+  persistence:
+    enabled: true

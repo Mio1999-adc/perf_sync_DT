@@ -1,0 +1,177 @@
+{
+  "uid": "perfsync-phase3",
+  "title": "PerfSync Phase 3 \u2014 measured execution",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Verified synchronization duration (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(perfsync_sync_seconds_sum[1m]) / rate(perfsync_sync_seconds_count[1m])",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Invocations",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "perfsync_invocations_total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Invocation failures",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "perfsync_invocation_failures_total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Retries",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "perfsync_retries_total",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Caller concurrency",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "perfsync_invocations_inflight",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Host CPU percent",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "perfsync_host_cpu_percent",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Host memory bytes",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "perfsync_host_memory_used_bytes",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Function duration (seconds)",
+      "type": "timeseries",
+      "datasource": {
+        "uid": "perfsync-prometheus",
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "rate(perfsync_function_seconds_sum[1m]) / rate(perfsync_function_seconds_count[1m])",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s"
+}

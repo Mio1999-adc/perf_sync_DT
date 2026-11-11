@@ -88,3 +88,39 @@ def test_live_kafka_roundtrip():
     finally:
         consumer.close()
         transport.close()
+
+
+@pytest.mark.integration
+def test_live_completed_mqtt_session_can_be_released_without_resuming_old_queue():
+    host=os.getenv('MQTT_TEST_HOST')
+    if host not in {'localhost','127.0.0.1'}:
+        pytest.skip('local MQTT_TEST_HOST required for launcher session cleanup test')
+    import threading
+    import paho.mqtt.client as mqtt
+    from perfsyncgnn.launcher.health_checks import release_mqtt_session
+    session='test-'+uuid.uuid4().hex[:18]
+    def connect():
+        ready=threading.Event();flags=[]
+        client=mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,client_id=session,clean_session=False)
+        def connected(c,u,f,r,p):
+            flags.append(f.session_present);ready.set()
+        client.on_connect=connected
+        client.connect(host,1883);client.loop_start()
+        assert ready.wait(5)
+        return client,flags[0]
+    first,_=connect()
+    subscribed=threading.Event()
+    first.on_subscribe=lambda *args:subscribed.set()
+    first.subscribe('perfsync/test/'+session,qos=1)
+    try:
+        assert subscribed.wait(5)
+        first.disconnect();first.loop_stop()
+        release_mqtt_session(session)
+        second,present=connect()
+        try:
+            assert present is False
+        finally:
+            second.disconnect();second.loop_stop()
+    finally:
+        first.disconnect();first.loop_stop()
+        release_mqtt_session(session)

@@ -1,3 +1,5 @@
+> For the current terminal-by-terminal guide, corrected broker settings and live-service evidence, see [PHASE2_USER_GUIDE.md](PHASE2_USER_GUIDE.md) and [PHASE2_VERIFICATION.md](PHASE2_VERIFICATION.md).
+
 # Phase 2 setup and operation semantics
 
 PerfSyncGNN is prediction-only. This phase implements deterministic synchronization,
